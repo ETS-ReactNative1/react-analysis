@@ -10,6 +10,10 @@ import lowPriorityWarning from 'shared/lowPriorityWarning';
 
 import ReactNoopUpdateQueue from './ReactNoopUpdateQueue';
 
+// 该文件包含两个基本组件，分别为 Component 及 PureComponent
+// 没看这个文件之前以为 Component 会很复杂，内部需要处理一大堆逻辑
+// 其实简单的一匹
+
 const emptyObject = {};
 if (__DEV__) {
   Object.freeze(emptyObject);
@@ -21,19 +25,18 @@ if (__DEV__) {
 function Component(props, context, updater) {
   this.props = props;
   this.context = context;
-
   // If a component has string refs, we will assign a different object later.
-  // ------------------------------------
-  // ref = { (ref) => this.refObj = ref }
-  // ------------------------------------
-  // this.refObj = createRef()
-  // ref = {this.refObj}
-  // ------------------------------------
+  // ref 有好几个方式创建，字符串的不讲了，一般都是通过传入一个函数来给一个变量赋值 ref 的
+  // ref={el => this.el = el} 这种方式最推荐
+  // 当然还有种方式是通过 React.createRef 创建一个 ref 变量，然后这样使用
+  // this.el = React.createRef()
+  // ref={this.el}
+  // 关于 React.createRef 就阅读 ReactCreateRef.js 文件了
   this.refs = emptyObject;
-
-  // We initialize the default updater but the real one gets injected by the renderer.
-  // WarnNoop
-  // ReactNoopUpdateQueue 默认场景下的一些报错
+  // We initialize the default updater but the real one gets injected by the
+  // renderer.
+  // 如果你在组件中打印 this 的话，可能看到过 updater 这个属性
+  // 有兴趣可以去看看 ReactNoopUpdateQueue 中的内容，虽然没几个 API，并且也基本没啥用，都是用来报警告的
   this.updater = updater || ReactNoopUpdateQueue;
 }
 
@@ -64,6 +67,10 @@ Component.prototype.isReactComponent = {};
  * @final
  * @protected
  */
+// 我们在组件中调用 setState 其实就是调用到这里了
+// 用法不说了，如果不清楚的把上面的注释和相应的文档看一下就行
+// 一开始以为 setState 一大堆逻辑，结果就是调用了 updater 里的方法
+// 所以 updater 还是个蛮重要的东西
 Component.prototype.setState = function(partialState, callback) {
   invariant(
     typeof partialState === 'object' ||
@@ -72,8 +79,6 @@ Component.prototype.setState = function(partialState, callback) {
     'setState(...): takes an object of state variables to update or a ' +
       'function which returns an object of state variables.',
   );
-
-  // TODO: 对应的 enqueueSetState 在 react-dom 中。
   this.updater.enqueueSetState(this, partialState, callback, 'setState');
 };
 
@@ -91,6 +96,7 @@ Component.prototype.setState = function(partialState, callback) {
  * @final
  * @protected
  */
+// 这个 API 用的很好，不清楚作用的看文档吧
 Component.prototype.forceUpdate = function(callback) {
   this.updater.enqueueForceUpdate(this, callback, 'forceUpdate');
 };
@@ -133,6 +139,7 @@ if (__DEV__) {
   }
 }
 
+// 以下做的都是继承功能，让 PureComponent 继承自 Component
 function ComponentDummy() {}
 ComponentDummy.prototype = Component.prototype;
 
@@ -151,8 +158,7 @@ const pureComponentPrototype = (PureComponent.prototype = new ComponentDummy());
 pureComponentPrototype.constructor = PureComponent;
 // Avoid an extra prototype jump for these methods.
 Object.assign(pureComponentPrototype, Component.prototype);
-
-// Component 与 PureComponent 的最明显的区别
+// 通过这个变量区别下普通的 Component
 pureComponentPrototype.isPureReactComponent = true;
 
 export {Component, PureComponent};
